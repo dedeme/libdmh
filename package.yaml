@@ -1,0 +1,44 @@
+name:                libdmh
+version:             2020.01
+github:              "dedeme/libdmh"
+license:             GPL-3
+author:              "ºDeme"
+
+extra-source-files:
+- README.md
+
+# Metadata used when publishing your package
+# synopsis:            Personal utilities
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/dedeme/libdmh#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- bytestring
+- base64-bytestring
+- utf8-string
+- random
+- array
+- time
+- json
+- directory
+- filepath
+- process
+
+library:
+  source-dirs: src
+
+tests:
+  libdmh-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - libdmh
