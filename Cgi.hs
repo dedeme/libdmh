@@ -59,11 +59,11 @@ sessionsPath cgi = (home cgi) </> "sessions.db"
 readUsers :: Cgi -> IO [String]
 readUsers cgi = do
   js <- File.read $ usersPath cgi
-  return $ map Js.rString $ Js.rList $ Js.fromStr js
+  return $ map Js.rs $ Js.rList $ Js.fromStr js
 
 writeUsers :: Cgi -> [String] -> IO ()
 writeUsers cgi us =
-  File.write (usersPath cgi) $ Js.toStr $ Js.wList $ map Js.wString us
+  File.write (usersPath cgi) $ Js.toStr $ Js.wList $ map Js.ws us
 
 -- Returns (Id, key, level)
 userFields :: String -> (String, String, String)
@@ -101,27 +101,27 @@ addSession cgi sId u k exp = do
   where
     ffilter now sJs = let [sId', u, k, cId, tm', lapse] = Js.rList sJs
                           tm = fromIntegral (systemSeconds now) :: Int
-                      in  if (sId == Js.rString sId') ||
-                             (tm > Js.rInt tm')
+                      in  if (sId == Js.rs sId') ||
+                             (tm > Js.ri tm')
                           then False
                           else True
     add now ss = do
-      let ss' = (Js.wList [Js.wString sId,
-                 Js.wString u,
-                 Js.wString k,
-                 Js.wString "",
-                 Js.wInt $ fromIntegral (systemSeconds now) + exp,
-                 Js.wInt exp]):ss
+      let ss' = (Js.wList [Js.ws sId,
+                 Js.ws u,
+                 Js.ws k,
+                 Js.ws "",
+                 Js.wi $ fromIntegral (systemSeconds now) + exp,
+                 Js.wi exp]):ss
       writeSessions cgi ss'
 
 setConnectionId :: Cgi -> String -> String -> IO ()
 setConnectionId cgi ssId conId = do
-  let ssIdJs = Js.wString(ssId)
+  let ssIdJs = Js.ws(ssId)
   sessions <- readSessions cgi
   case find (\js -> head (Js.rList js) == ssIdJs) sessions of
     Nothing -> return ()
     Just js -> do
-      let conIdJs = Js.wString conId
+      let conIdJs = Js.ws conId
       let [sId, u, k, _, tm, lapse] = Js.rList js
       let ss = filter (\js -> ffind ssIdJs (Js.rList js)) sessions
       let ss' = (Js.wList [sId, u, k, conIdJs, tm, lapse]):ss
@@ -168,7 +168,7 @@ connect cgi sessionId = do
   k <- Cryp.genk klen
   setConnectionId cgi sessionId (C8.unpack k)
   (key, conId) <- getSessionData cgi sessionId
-  ok cgi [("key", Js.wString key), ("connectionId", Js.wString conId)]
+  ok cgi [("key", Js.ws key), ("connectionId", Js.ws conId)]
 
 -- | @'authentication' cgi user key exp@ - Authenticates /user/ and returns
 --   to client:
@@ -193,15 +193,15 @@ authentication cgi user key exp = do
         let sKey = C8.unpack sKeyBs
         addSession cgi sId u sKey exp
         ok cgi [
-          ("level", Js.wString l),
-          ("sessionId", Js.wString sId),
-          ("key", Js.wString sKey)]
+          ("level", Js.ws l),
+          ("sessionId", Js.ws sId),
+          ("key", Js.ws sKey)]
       else ffail
   where
     ffail = ok cgi [
-      ("level", Js.wString ""),
-      ("sessionId", Js.wString ""),
-      ("key", Js.wString "")]
+      ("level", Js.ws ""),
+      ("sessionId", Js.ws ""),
+      ("key", Js.ws "")]
 
 -- | @'getSessionData' cgi sessionId@ - Returns next data to client:
 --
@@ -214,7 +214,7 @@ getSessionData :: Cgi -> String -> IO (String, String)
 getSessionData cgi sessionId = do
   now' <- getSystemTime
   let now = (fromIntegral (systemSeconds now')) :: Int
-  let ssIdJs = Js.wString(sessionId)
+  let ssIdJs = Js.ws(sessionId)
   sessions' <- readSessions cgi
   let sessions = filter (\js -> ffilter now (Js.rList js)) sessions'
   case find (\js -> ffind ssIdJs (Js.rList js)) sessions of
@@ -222,19 +222,19 @@ getSessionData cgi sessionId = do
     Just js -> do
       let [sId, u, k, cId, tm, lapse] = Js.rList js
       let ss = filter (\js -> not (ffind ssIdJs (Js.rList js))) sessions
-      let tm' = Js.wInt $ now + Js.rInt lapse
+      let tm' = Js.wi $ now + Js.ri lapse
       let ss' = (Js.wList [sId, u, k, cId, tm', lapse]):ss
       writeSessions cgi ss'
-      return (Js.rString k, Js.rString cId)
+      return (Js.rs k, Js.rs cId)
   where
     ffind id (sId:_) = sId == id
-    ffilter now (_:_:_:_:tm:_) = Js.rInt tm > now
+    ffilter now (_:_:_:_:tm:_) = Js.ri tm > now
 
 -- | @'delSession' cgi sessionId@ - Deletes a session and returns an empty
 --   response. If sessionId in unknown, it does nothing.
 delSession :: Cgi -> String -> IO ()
 delSession cgi sessionId = do
-  let sId = Js.wString sessionId
+  let sId = Js.ws sessionId
   ss <- readSessions cgi
   writeSessions cgi $ filter (f sId) ss
   empty cgi
@@ -256,13 +256,13 @@ addUser :: Cgi -> String -> String -> String -> String -> String -> IO()
 addUser cgi admin apass user upass level = do
   ad <- getUser cgi admin
   case ad of
-    Nothing -> ok cgi [("ok", Js.wBool False)]
+    Nothing -> ok cgi [("ok", Js.wb False)]
     Just (_, k, l) ->
       if (l /= "0") || k /= (C8.unpack $ Cryp.key apass klen)
-      then ok cgi [("ok", Js.wBool False)]
+      then ok cgi [("ok", Js.wb False)]
       else do
         addUser' cgi user upass level
-        ok cgi [("ok", Js.wBool True)]
+        ok cgi [("ok", Js.wb True)]
 
 -- | @'delUser' cgi admin apass user@ - Removes an user.
 --
@@ -277,14 +277,14 @@ delUser :: Cgi -> String -> String -> String -> IO ()
 delUser cgi admin apass user = do
   ad <- getUser cgi admin
   case ad of
-    Nothing -> ok cgi [("ok", Js.wBool False)]
+    Nothing -> ok cgi [("ok", Js.wb False)]
     Just (_, k, l) ->
       if (l /= "0") || k /= (C8.unpack $ Cryp.key apass klen)
-      then ok cgi [("ok", Js.wBool False)]
+      then ok cgi [("ok", Js.wb False)]
       else do
         us <- readUsers cgi
         writeUsers cgi $ removeUser user us
-        ok cgi [("ok", Js.wBool True)]
+        ok cgi [("ok", Js.wb True)]
 
 -- | @'getUser' cgi id@ - Returns user data: Maybe (Id, key, level)
 getUser :: Cgi -> String -> IO (Maybe (String, String, String))
@@ -305,14 +305,14 @@ changePass :: Cgi -> String -> String -> String -> IO ()
 changePass cgi user pass newPass = do
   u <- getUser cgi user
   case u of
-    Nothing -> ok cgi [("ok", Js.wBool False)]
+    Nothing -> ok cgi [("ok", Js.wb False)]
     Just (_, k, l) ->
       if k == (C8.unpack $ Cryp.key pass klen)
       then do
         addUser' cgi user newPass l
-        ok cgi [("ok", Js.wBool True)]
+        ok cgi [("ok", Js.wb True)]
       else
-        ok cgi [("ok", Js.wBool False)]
+        ok cgi [("ok", Js.wb False)]
 
 -- | @'changeLevel' cgi admin apass user level@ - Changes user level.
 --
@@ -328,22 +328,22 @@ changeLevel :: Cgi -> String -> String -> String -> String -> IO ()
 changeLevel cgi admin apass user level = do
   ad <- getUser cgi admin
   case ad of
-    Nothing -> ok cgi [("ok", Js.wBool False)]
+    Nothing -> ok cgi [("ok", Js.wb False)]
     Just (_, k, l) ->
       if (l /= "0") || k /= (C8.unpack $ Cryp.key apass klen)
-      then ok cgi [("ok", Js.wBool False)]
+      then ok cgi [("ok", Js.wb False)]
       else do
         u <- getUser cgi user
         case u of
-          Nothing -> ok cgi [("ok", Js.wBool False)]
+          Nothing -> ok cgi [("ok", Js.wb False)]
           Just (_, k, l) -> do
             addUser' cgi user k level
-            ok cgi [("ok", Js.wBool True)]
+            ok cgi [("ok", Js.wb True)]
 
 -- | @'get' rq f key@ - Returns the value /key/ of a request /rq/. If /key/ is
 --   unknown, it produces an error.
 --
--- >>> Cgi.get rq Js.rString "rq"
+-- >>> Cgi.get rq Js.rs "rq"
 -- "main"
 get :: [(String, JSValue)] -> (JSValue -> a) -> String -> a
 get rq f key =  case lookup key rq of
@@ -353,9 +353,9 @@ get rq f key =  case lookup key rq of
 -- | @'ok' cgi rp@ - Sends a response to client. For example:
 --
 -- > ok cgi [
--- >         ("level", Js.wString l),
--- >         ("sessionId", Js.wString sId),
--- >         ("key", Js.wString sKey)]
+-- >         ("level", Js.ws l),
+-- >         ("sessionId", Js.ws sId),
+-- >         ("key", Js.ws sKey)]
 ok :: Cgi -> [(String, JSValue)] -> IO ()
 ok cgi rp = Bs.putStr $ Cryp.cryp (Js.toStr $ Js.wMap rp) (key cgi)
 
@@ -365,12 +365,12 @@ empty :: Cgi -> IO ()
 empty cgi = ok cgi []
 
 -- | @'error' cgi msg@ - Sends an error response to client. It is equals to
--- @'ok' cgi [("error", Js.wString msg)]@
+-- @'ok' cgi [("error", Js.ws msg)]@
 error :: Cgi -> String -> IO ()
-error cgi msg = ok cgi [("error", Js.wString msg)]
+error cgi msg = ok cgi [("error", Js.ws msg)]
 
 -- | @'expired' cgi@ - Sends an expired response to client. It is equals to
--- @'ok' cgi [("expired", Js.wBool True)]@
+-- @'ok' cgi [("expired", Js.wb True)]@
 expired :: Cgi -> IO ()
-expired cgi = ok cgi [("expired", Js.wBool True)]
+expired cgi = ok cgi [("expired", Js.wb True)]
 

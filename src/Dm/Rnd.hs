@@ -1,7 +1,7 @@
 -- Copyright 11-Nov-2018 ºDeme
 -- GNU General Public License - V3 <http://www.gnu.org/licenses/>
 
--- | Ramdom utilities.
+--- Ramdom utilities.
 
 module Dm.Rnd(
   Box,
@@ -11,86 +11,69 @@ module Dm.Rnd(
   dList,
   shuffle,
   box,
-  boxNext,
-  boxDo
+  box',
+  boxNext
   ) where
 
 import System.Random
 import Data.List
 import Control.Applicative
 
--- | @'i' max@ - Produces a random integer between [0-max)
-i :: Int -> IO(Int)
-i max = randomRIO (0, max - 1)
-
--- | @'d'@ - Produces a random Double between [0-1)
+--- d
+--- Returns a value between (0 - 1]
 d :: IO(Double)
 d = randomIO
 
--- | @'iList' max@ - Procues a list with random integers between [0-max)
-iList :: Int -> IO([Int])
-iList max = newStdGen >>= return . (randomRs (0, max - 1))
+--- i
+--- Returns a value between (0 - mx]
+i :: Int -> IO(Int)
+i max = if max < 2 then return 0 else randomRIO (0, max - 1)
 
--- | @'dList'@ - Produces a list with random doubles between [0-1)
-dList :: IO([Double])
-dList = newStdGen >>= return . randoms
+--- dList n
+--- Creates a list with 'n' random numbers between (0 - 1].
+dList :: Int -> IO([Double])
+dList n = foldl
+          (\r -> \e -> do rv <- r; ev <- e; return (ev:rv))
+          (return []) (reverse $ take n (repeat d))
 
--- | @'shuffle' ls@ - Returns a list with elements of /ls/ randomly ordered.
+--- iList n
+--- Creates a list with 'n' random numbers (0 - mx].
+iList :: Int -> Int -> IO([Int])
+iList n mx = foldl
+        (\r -> \e -> do rv <- r; ev <- e; return (ev:rv))
+        (return []) (reverse $ take n $ repeat $i mx)
+
+--- suffle ls
+--- Returns a list with elements of 'ls' randomly sorted.
 shuffle :: [a] -> IO [a]
-shuffle ls = sh (length ls) ls
+shuffle l = sh (return []) l
   where
-  sh _ [] = return []
-  sh _ [e] = return [e]
-  sh len ls = do
-    ix <- i len
-    let (left, (x:xs)) = splitAt ix ls
-    rest <- sh (len - 1) (left ++ xs)
-    return (x:rest)
+    sh r [] = r
+    sh r ls = do
+      rl <- r
+      ix <- i $ length ls
+      sh (return ((ls!!ix):rl)) ((take ix ls) ++ (drop (ix + 1) ls))
 
--- | @'Box' [base] [current]@ - Is a Type to generate infinite random
---                          ocurrences of elements from a list.
---
---                          At the beginning /base/ is reordered randomly in
---                          /current/
---
---                          When 'boxNext' is called the head of /current/ is
---                          returned an removed. When /curreent/ is exhausted,
---                          is generated from /base/ again.
+--- Object to return random values.
+--- Values belong to a list and returned with the following procedure:
+---   1.  Returns every element in random order.
+---   2. Restore the original list and go to step 1.
 data Box a = Box [a] [a]
 
--- | @'box' ls@ - Creates a box with elements of /ls/
+--- box ls
+--- Creates a box with elements of 'ls'
 box :: [a] -> Box a
 box ls = Box ls []
 
--- | @'box' [(n, e)]@ - Creates a box with elements /e/'s duplicated /n/ times.
+--- box ls'
+--- Creates a box with elements of 'ls'. Each element has a number 'n' and
+--- a value, indicateing that it will be added 'n' elements of such value.
 box' :: [(Int, a)] -> Box a
-box' ls = Box (foldl' (\r (n, e) -> (replicate n e) ++ r) [] ls) []
+box' ls = Box (foldl (\r (n, e) -> (replicate n e) ++ r) [] ls) []
 
--- | @'boxNext' box@ - Returns the next element of /box/
-boxNext :: Box a -> IO(a, Box a)
-boxNext (Box d curr) = do
-  (x:xs) <- if null curr then shuffle d else return curr
-  return (x, Box d xs)
-
--- | @'boxDo' bx f@ - Runs /f/ with elements of /bx/ until it returns
---                    @IO False@.
---
--- >>> bx = box [1, 2, 3]
--- >>> f n = do print n; tx <- getLine; return (tx == "more")
--- >>> boxDo bx f
--- 1
--- more
--- 3
--- more
--- 2
--- more
--- 3
--- end
--- >>>
-boxDo :: Box a -> (a -> IO Bool) -> IO ()
-boxDo bx f = do
-  (e, bx') <- boxNext bx
-  cont <- f e
-  if cont then boxDo bx' f else return ()
-
-
+--- boxNext box
+--- Returns the next element of 'box'.
+boxNext :: Box a -> IO (a, Box a)
+boxNext (Box base curr) = do
+  (x:xs) <- if null curr then shuffle base else return curr
+  return (x, Box base xs)

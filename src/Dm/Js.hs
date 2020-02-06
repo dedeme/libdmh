@@ -1,115 +1,197 @@
 -- Copyright 07-Nov-2018 ºDeme
 -- GNU General Public License - V3 <http://www.gnu.org/licenses/>
 
--- | JSON module.
+--- JSON module.
 
 module Dm.Js
-  ( JSValue,
-    toStr,
-    fromStr,
-    wBool,
-    wInt,
-    wDouble,
-    wString,
-    wList,
-    wMap,
-    wMaybe,
-    wEither,
-    rBool,
-    rInt,
-    rDouble,
-    rString,
-    rList,
-    rMap,
-    rMaybe,
-    rEither
+  ( T
+  , fromStr
+  , toStr
+  , wb
+  , wi
+  , wd
+  , ws
+  , wa
+  , wo
+  , rb
+  , ri
+  , rd
+  , rs
+  , ra
+  , ro
+    -- DERIVATES
+  , wMaybe
+  , rMaybe
+  , wEither
+  , rEither
+  , wResult
+  , rResult
+  , wList
+  , rList
+  , wMap
+  , rMap
   ) where
 
-import Text.JSON
+import Text.JSON hiding (Result)
+import Dm.Map as Map
+import Dm.Either (Result)
 
--- | @'toStr' js@ - Returns a string representing /js/. /js/ must be a List
---                  or a Map.
+---
+type T = JSValue
+
+emsg :: String -> String
+emsg s = "JSON error.\n" ++ s
+
+--- toStr js
+--- Returns a string representing 'js'. 'js' must be a List or a Map.
 toStr :: JSValue -> String
 toStr = encodeStrict
 
--- | @'fromStr' s@ - Returns the JSON object corresponding to /s/.
-fromStr :: String -> JSValue
+--- fromStr s
+--- Returns the JSON object corresponding to 's'.
+fromStr :: String -> Result JSValue
 fromStr js = case decodeStrict js of
-  Ok v -> v
-  Error e -> error ("Bad JSON: " ++ js)
+  Ok v -> Right v
+  Error e -> Left e
 
--- | @'wBool' v@ - Returns the JSON value of /v/.
-wBool :: Bool -> JSValue
-wBool = showJSON
+--- wb v
+-- Returns the JSON value of 'v'.
+wb :: Bool -> JSValue
+wb = showJSON
 
--- | @'wInt' v@ - Returns the JSON value of /v/.
-wInt :: Int -> JSValue
-wInt = showJSON
+--- wi v
+--- Returns the JSON value of 'v'.
+wi :: Int -> JSValue
+wi = showJSON
 
--- | @'wDouble' v@ - Returns the JSON value of /v/.
-wDouble :: Double -> JSValue
-wDouble = showJSON
+--- wd v
+--- Returns the JSON value of 'v'.
+wd :: Double -> JSValue
+wd = showJSON
 
--- | @'wString' v@ - Returns the JSON value of /v/.
-wString :: String -> JSValue
-wString = showJSON
+--- ws v
+--- Returns the JSON value of 'v'.
+ws :: String -> JSValue
+ws = showJSON
 
--- | @'wList' v@ - Returns the JSON value of /v/.
-wList :: [JSValue] -> JSValue
-wList = showJSONs
+--- wa v
+--- Returns the JSON value of 'v'.
+wa :: [JSValue] -> JSValue
+wa = showJSONs
 
--- | @'wMap' v@ - Returns the JSON value of /v/.
-wMap :: [(String, JSValue)] -> JSValue
-wMap ls = JSObject $ toJSObject ls
+--- wo v
+--- Returns the JSON value of 'v'.
+wo :: Map JSValue -> JSValue
+wo ls = JSObject $ toJSObject ls
 
--- | @'wMaybe' v@ - Returns the JSON value of /v/.
-wMaybe :: Maybe JSValue -> JSValue
-wMaybe Nothing = JSNull
-wMaybe (Just v) = v
+--- rb js
+--- Retuns the value of 'js'.
+rb :: JSValue -> Result Bool
+rb (JSBool v) = Right v
+rb js = Left $ emsg $ "'" ++ (show js) ++ "' is not a Bool"
 
--- | @'wEither' v@ - Returns the JSON value of /v/.
-wEither :: Either JSValue JSValue -> JSValue
-wEither (Left v) = wList[v, JSNull]
-wEither (Right v) = wList[JSNull, v]
+--- ri js
+--- Retuns the value of 'js'.
+ri :: JSValue -> Result Int
+ri (JSRational _ v) = Right $ truncate v
+ri js = Left $ emsg $ "'" ++ (show js) ++ "' is not an Int"
 
--- | @'rBool' js@ - Retuns the value of /js/.
-rBool :: JSValue -> Bool
-rBool (JSBool v) = v
-rBool _ = error "Bad JSON Bool"
+--- rd js
+--- Retuns the value of 'js'.
+rd :: JSValue -> Result Double
+rd (JSRational _ v) = Right $ fromRational v
+rd js = Left $ emsg $ "'" ++ (show js) ++ "' is not a Double"
 
--- | @'rInt' js@ - Retuns the value of /js/.
-rInt :: JSValue -> Int
-rInt (JSRational _ v) = truncate v
-rInt _ = error "Bad JSON Int"
+--- rs js
+--- Retuns the value of 'js'.
+rs :: JSValue -> Result String
+rs (JSString v) = Right $ fromJSString v
+rs js = Left $ emsg $ "'" ++ (show js) ++ "' is not a String"
 
--- | @'rDouble' js@ - Retuns the value of /js/.
-rDouble :: JSValue -> Double
-rDouble (JSRational _ v) = fromRational v
-rDouble _ = error "Bad JSON Double"
+--- ra js
+--- Retuns the value of 'js'.
+ra :: JSValue -> Result [JSValue]
+ra (JSArray v) = Right v
+ra js = Left $ emsg$ "'" ++ (show js) ++ "' is not an Array"
 
--- | @'rString' js@ - Retuns the value of /js/.
-rString :: JSValue -> String
-rString (JSString v) = fromJSString v
-rString _ = error "Bad JSON String"
+--- ro js
+--- Retuns the value of 'js'.
+ro :: JSValue -> Result (Map JSValue)
+ro (JSObject o) = Right $ fromJSObject o
+ro js = Left $ emsg "'" ++ (show js) ++ "' is not an Object"
 
--- | @'rList' js@ - Retuns the value of /js/.
-rList :: JSValue -> [JSValue]
-rList (JSArray v) = v
-rList _ = error "Bad JSON List"
+-- DERIVATES -------------------------------------------------------------------
 
--- | @'rMap' js@ - Retuns the value of /js/.
-rMap :: JSValue -> [(String, JSValue)]
-rMap (JSObject o) = fromJSObject o
-rMap _ = error "Bad JSON Map"
+--- wMaybe f v
+--- Writes a Maybe value.
+wMaybe :: (a -> JSValue) -> Maybe a -> JSValue
+wMaybe f (Just v) = wa [f v]
+wMaybe _ Nothing = wa []
 
--- | @'rMaybe' js@ - Retuns the value of /js/.
-rMaybe :: JSValue -> Maybe JSValue
-rMaybe JSNull = Nothing
-rMaybe v = Just v
+--- rMaybe f js
+--- Reads a Maybe value.
+rMaybe :: (JSValue -> Result a) -> JSValue -> Result (Maybe a)
+rMaybe f js = case ra js of
+              Right [] -> Right Nothing
+              Right [j] -> f j >>= (Right . Just)
+              _ -> Left $ emsg $ "'" ++ (show js) ++ "' is not an Maybe"
 
--- | @'rEither' js@ - Retuns the value of /js/.
-rEither :: JSValue -> Either JSValue JSValue
-rEither js = case rList js of
-  [v, JSNull] -> Left v
-  [JSNull, v] -> Right v
-  _ -> error "Bad JSON Either"
+--- wEither fLeft fRight v
+--- Writes a Either value.
+wEither :: (a -> JSValue) -> (b -> JSValue) -> Either a b -> JSValue
+wEither f _ (Left a) = wa [wb False, f a]
+wEither _ f (Right b) = wa [wb True, f b]
+
+--- rEither fLeft fRight js
+--- Reads a Either value.
+rEither :: (JSValue -> Result a) -> (JSValue -> Result b) -> JSValue ->
+           Result (Either a b)
+rEither fLeft fRight js =
+  case ra js of
+    Right [isRight, v] ->
+     case rb isRight of
+       Right True -> fRight v >>= (Right . Right)
+       Right False -> fLeft v >>= (Right . Left)
+       _ -> Left msg
+    _ -> Left msg
+  where
+    msg = emsg $ "'" ++ (show js) ++ "' is not an Either"
+
+--- wResult f v
+--- Writes a Maybe value.
+wResult :: (a -> JSValue) -> Result a -> JSValue
+wResult f v = wEither ws f v
+
+--- rResult f js
+--- Reads a Maybe value.
+rResult :: (JSValue -> Result a) -> JSValue -> Result (Result a)
+rResult f js = rEither rs f js
+
+--- wList f ls
+--- Writes a 'List' which elements are 'JSON'ized with 'f'.
+wList :: (a -> JSValue) -> [a] -> JSValue
+wList fn ls = wa $ map fn ls
+
+--- rList f js
+--- Reads a 'List' created with 'wList'.
+rList :: (JSValue -> Result a) -> JSValue -> Result [a]
+rList f js = (reverse <$> ra js) >>=
+             ( foldl (\r -> \e -> (f e) >>= (\x -> add x r))
+               (Right []))
+  where
+    add :: a -> Result [a] -> Result [a]
+    add x r = (\l -> x:l) <$> r
+
+--- wMap f m
+--- Writes a 'Map' which elements are 'JSON'ized with 'f'.
+wMap :: (a -> JSValue) -> Map a -> JSValue
+wMap f m = wList (\(k, v) -> wa [ws k, f v]) $ Map.pack m
+
+--- rList f js
+--- Reads a 'Map' created with 'wMap'.
+rMap :: (JSValue -> Result a) -> JSValue -> Result (Map a)
+rMap f m = rList (\js ->
+  case ra js of
+    Right [s, e] -> (\e1 -> \e2 -> (e1, e2)) <$> (rs s) <*> (f e)
+    _ -> Left $ emsg $ "'" ++ (show m) ++ "' is not a Map"
+  ) m

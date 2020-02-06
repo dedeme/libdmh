@@ -147,9 +147,7 @@ write path = (Bs.writeFile path) . U8.fromString
 
 -- | @'read' path@ - Read /path/ which was written in UTF-8.
 read :: FilePath -> IO String
-read path = do
-  bs <- Bs.readFile path
-  return $ U8.toString bs
+read path = U8.toString <$> Bs.readFile path
 
 -- | @'name' path@ - Returns the name of /path/
 name :: FilePath -> String

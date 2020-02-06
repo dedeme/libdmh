@@ -1,6 +1,6 @@
 lib/
 *.geany
-.stack-work/
+.stack-work
 *.cabal
 *~
 

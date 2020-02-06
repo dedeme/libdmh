@@ -1,7 +1,7 @@
 -- Copyright 06-Nov-2018 ºDeme
 -- GNU General Public License - V3 <http://www.gnu.org/licenses/>
 
--- | Encryption utilities.
+--- Encryption utilities.
 module Dm.Cryp
     ( genk,
       key,
@@ -23,7 +23,8 @@ import qualified Data.ByteString as Bs
 import qualified Data.ByteString.Char8 as C8
 import Data.ByteString.Internal (ByteString(..))
 
--- | @'genk' n@ - Generates a random key of /n/ b64 characters
+--- genk n
+--- Generates a random key of /n/ b64 characters
 genk :: Int -> IO(ByteString)
 genk len = do
   w8 <- mapM rnd [x | x <- [1..lg]]
@@ -36,12 +37,14 @@ genk len = do
     dic = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
     adic = listArray (1, length dic) (Bs.unpack (C8.pack dic))
 
--- | @'key' s len@ - Returns /s/ irreversibly encoded to a BysteString of length
---                   /len/
+--- key s len
+--- Returns 's' irreversibly encoded to a BysteString of length 'len'
 key :: String -> Int -> ByteString
 key k len = unsafePerformIO $ do
   let k0 = k ++ "codified in irreversibleDeme is good, very good!\n\r8@@"
-  let k' = B64.decodeBs $ B64.encode k0
+  let k' = case B64.decodeBs $ B64.encode k0 of
+              Left msg -> error msg
+              Right v -> v
   let lenk = Bs.length k'
   let len2 = len + lenk
   let sum0 = toInt (Bs.foldl' (+) 0 k')
@@ -106,7 +109,8 @@ bsMap f bs1 bs2 = unsafePerformIO $ do
   free r
   return $ Bs.pack rBs
 
--- | @'cryp' text key@ - Returns /text/ codified with /key/
+--- cryp text key
+--- Returns 'text' codified with 'key'
 cryp :: String -> String -> ByteString
 cryp text "" = error "Key is a blank string"
 cryp text k =
@@ -114,12 +118,12 @@ cryp text k =
       k' = key k (Bs.length text')
   in  B64.encodeBs $ bsMap (\x y -> x + y) text' k'
 
--- | @'decryp' code key@ - Returns the string which was codified with /key/ in
---                        /code/
-decryp :: ByteString -> String -> String
-decryp code "" = error "Key is a blank string"
+--- decryp code key
+--- Returns the string which was codified with 'key' in 'code'
+decryp :: ByteString -> String -> Either String String
+decryp code "" = Left "Key is a blank string"
 decryp code k =
-  let code' = B64.decodeBs code
-      k' = key k (Bs.length code')
-  in  B64.decode $ bsMap (\x y -> x - y) code' k'
-
+  B64.decodeBs code >>= (\code' ->
+    let k' = key k (Bs.length code')
+    in  B64.decode $ bsMap (\x y -> x - y) code' k'
+  )
