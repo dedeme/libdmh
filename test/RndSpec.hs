@@ -8,7 +8,7 @@ import Dm.Rnd as Rnd
 
 rndTest :: IO ()
 rndTest = do
-  putStrLn "Testing Rnd:"
+  putStrLn "Testing Rnd"
 
   (fmap (1 >) Rnd.d) >>= tyes
   (fmap (0 <=) Rnd.d) >>= tyes

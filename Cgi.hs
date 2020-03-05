@@ -133,10 +133,10 @@ setConnectionId cgi ssId conId = do
 -- Public interface --------------------------------------------------
 
 -- | Cgi record
-data Cgi = Cgi {
-  key :: String, -- key to encrypt communications
-  home :: String -- Application directory
-} deriving (Show)
+data Cgi = Cgi
+  { key :: String -- key to encrypt communications
+  , home :: String -- Application directory
+  } deriving (Show)
 
 -- | @'new' homeDir key@ - Creates a new Cgi.
 --

@@ -1,9 +1,9 @@
-{-# LANGUAGE OverloadedStrings #-}
+-- Copyright 27-Jan-2020 ºDeme
+-- GNU General Public License - V3 <http://www.gnu.org/licenses/>
 
 module CrypSpec (crypTest) where
 
 import qualified Dm.Cryp as Cryp
-import Control.Exception.Base
 import qualified Data.ByteString as Bs
 import qualified Data.ByteString.Char8 as C8
 
@@ -16,7 +16,7 @@ crypTest = do
   putStrLn "Cryp test"
 
   k <- Cryp.genk 6
-  teq (Bs.length k) 6
+  teq (length k) 6
   teq (Cryp.key "deme" 6) "wiWTB9"
   teq (Cryp.key "Generaro" 5) "Ixy8I"
   teq (Cryp.key "Generara" 5) "0DIih"
@@ -29,6 +29,6 @@ crypTest = do
   tyes $ crDcr "ab c" "xxx"
   tyes $ crDcr "\n\ta€b c" "abc"
 
-  putStrLn "    Finished"
+  putStrLn "  Finished"
   where
     crDcr tx k = decryp (Cryp.cryp tx k) k == tx

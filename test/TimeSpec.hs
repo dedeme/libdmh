@@ -1,3 +1,6 @@
+-- Copyright 27-Jan-2020 ºDeme
+-- GNU General Public License - V3 <http://www.gnu.org/licenses/>
+
 module TimeSpec (timeTest) where
 
 import qualified Data.Either as Either

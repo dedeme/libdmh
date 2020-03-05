@@ -2,6 +2,7 @@
 -- GNU General Public License - V3 <http://www.gnu.org/licenses/>
 
 --- Encryption utilities.
+
 module Dm.Cryp
     ( genk,
       key,
@@ -25,10 +26,10 @@ import Data.ByteString.Internal (ByteString(..))
 
 --- genk n
 --- Generates a random key of /n/ b64 characters
-genk :: Int -> IO(ByteString)
+genk :: Int -> IO String
 genk len = do
   w8 <- mapM rnd [x | x <- [1..lg]]
-  return $ Bs.pack w8
+  return $ U8.toString $ Bs.pack w8
   where
     rnd _ = do
       i <- getStdRandom (randomR (1, length dic))
@@ -39,7 +40,7 @@ genk len = do
 
 --- key s len
 --- Returns 's' irreversibly encoded to a BysteString of length 'len'
-key :: String -> Int -> ByteString
+key :: String -> Int -> String
 key k len = unsafePerformIO $ do
   let k0 = k ++ "codified in irreversibleDeme is good, very good!\n\r8@@"
   let k' = case B64.decodeBs $ B64.encode k0 of
@@ -89,7 +90,7 @@ key k len = unsafePerformIO $ do
   free ra
   free ra1
   free ra2
-  return $ Bs.take len (B64.encodeBs $ Bs.pack rBs)
+  return $ take len $ B64.encodeBs $ Bs.pack rBs
   where
     toInt w = (fromIntegral w)::Int
     toWord8 i = (fromIntegral i)::Word8
@@ -111,19 +112,19 @@ bsMap f bs1 bs2 = unsafePerformIO $ do
 
 --- cryp text key
 --- Returns 'text' codified with 'key'
-cryp :: String -> String -> ByteString
+cryp :: String -> String -> String
 cryp text "" = error "Key is a blank string"
 cryp text k =
-  let text' = B64.encode text
-      k' = key k (Bs.length text')
+  let text' = U8.fromString $ B64.encode text
+      k' = U8.fromString $ key k (Bs.length text')
   in  B64.encodeBs $ bsMap (\x y -> x + y) text' k'
 
 --- decryp code key
 --- Returns the string which was codified with 'key' in 'code'
-decryp :: ByteString -> String -> Either String String
+decryp :: String -> String -> Either String String
 decryp code "" = Left "Key is a blank string"
 decryp code k =
   B64.decodeBs code >>= (\code' ->
-    let k' = key k (Bs.length code')
-    in  B64.decode $ bsMap (\x y -> x - y) code' k'
+    let k' = U8.fromString $ key k (Bs.length code')
+    in  B64.decode $ U8.toString $ bsMap (\x y -> x - y) code' k'
   )

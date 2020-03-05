@@ -7,7 +7,7 @@
 --- Functions 'pack' and 'delete' also creates new 'Map's.
 
 module Dm.Map
-  ( Map
+  ( T
   , get
   , put
   , delete
@@ -17,27 +17,27 @@ module Dm.Map
   ) where
 
 --- Definition
-type Map a = [(String, a)]
+type T a = [(String, a)]
 
 --- get key map
 --- Gets a value from its key
-get :: String -> Map a -> Maybe a
+get :: String -> T a -> Maybe a
 get = lookup
 
 --- put key value m
 --- Adds a pair key-value. If key already exists, the former one is not deleted
 --- until calling 'pack', 'keys' or 'values'
-put :: String -> a -> Map a -> Map a
+put :: String -> a -> T a -> T a
 put key value m = (key, value) : m
 
 --- delete key m
 --- Removes key
-delete :: String -> Map a -> Map a
+delete :: String -> T a -> T a
 delete key m = filter (\(k, _) -> k /= key) m
 
 --- pack m
 --- Removes former duplicate keys.
-pack :: Map a -> Map a
+pack :: T a -> T a
 pack m = pack' [] m
   where
   pack' r [] = r
@@ -47,10 +47,10 @@ pack m = pack' [] m
 
 --- keys m
 --- Returns keys of 'm'
-keys :: Map a -> [String]
+keys :: T a -> [String]
 keys = map (\(k, _) -> k) . pack
 
 --- values m
 --- Returns values of 'm'
-values :: Map a -> [a]
+values :: T a -> [a]
 values = map (\(_, v) -> v) . pack

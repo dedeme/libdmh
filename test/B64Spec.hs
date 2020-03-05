@@ -1,9 +1,9 @@
-{-# LANGUAGE OverloadedStrings #-}
+-- Copyright 27-Jan-2020 ºDeme
+-- GNU General Public License - V3 <http://www.gnu.org/licenses/>
 
 module B64Spec (b64Test) where
 
 import qualified Dm.B64 as B64
-import Control.Exception.Base
 import qualified Data.ByteString as Bs
 
 import Dm.Test
@@ -24,4 +24,4 @@ b64Test = do
   teq (decode b640) ""
   teq (decodeBs (B64.encodeBs bss)) bss
 
-  putStrLn "    Finished"
+  putStrLn "  Finished"

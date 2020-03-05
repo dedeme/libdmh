@@ -29,7 +29,7 @@ import Data.Time.Clock
 import Data.Time.Calendar
 import Data.Time.Format
 import qualified Dm.Js as Js
-import Dm.Either (Result)
+import Dm.Result
 
 ---
 type T = Day

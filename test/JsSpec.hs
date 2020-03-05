@@ -1,3 +1,6 @@
+-- Copyright 27-Jan-2020 ºDeme
+-- GNU General Public License - V3 <http://www.gnu.org/licenses/>
+
 module JsSpec (jsTest) where
 
 import Dm.Test

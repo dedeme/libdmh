@@ -43,7 +43,7 @@ iList n mx = foldl
         (\r -> \e -> do rv <- r; ev <- e; return (ev:rv))
         (return []) (reverse $ take n $ repeat $i mx)
 
---- suffle ls
+--- shuffle ls
 --- Returns a list with elements of 'ls' randomly sorted.
 shuffle :: [a] -> IO [a]
 shuffle l = sh (return []) l
@@ -58,6 +58,7 @@ shuffle l = sh (return []) l
 --- Values belong to a list and returned with the following procedure:
 ---   1.  Returns every element in random order.
 ---   2. Restore the original list and go to step 1.
+--- Box does not export its constructor (use instead "box" and "box'").
 data Box a = Box [a] [a]
 
 --- box ls
@@ -65,7 +66,7 @@ data Box a = Box [a] [a]
 box :: [a] -> Box a
 box ls = Box ls []
 
---- box ls'
+--- box' ls
 --- Creates a box with elements of 'ls'. Each element has a number 'n' and
 --- a value, indicateing that it will be added 'n' elements of such value.
 box' :: [(Int, a)] -> Box a

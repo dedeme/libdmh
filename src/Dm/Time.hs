@@ -7,6 +7,7 @@ module Dm.Time
   ( T
   , now
   , new
+  , fromUtc
   , fromStr'
   , fromStr
   , toStr
@@ -44,12 +45,16 @@ new y mth d h m s =
   LocalTime (Date.new y mth d) $
           TimeOfDay h m (fromIntegral s)
 
+--- fromUtc utc
+fromUtc :: UTCTime -> LocalTime
+fromUtc = utcToLocalTime utc
+
 --- fromStr' d s
 --- Reads a time with format HH:MM:SS. Produces an error if reading fails.
 fromStr' :: Date.T -> String -> T
 fromStr' d s = let LocalTime _ tm = parseTimeOrError False
-                                  defaultTimeLocale "%H:%M:%S" s
-              in  LocalTime d tm
+                                    defaultTimeLocale "%H:%M:%S" s
+               in  LocalTime d tm
 
 --- fromStr d s
 --- Reads a time with format HH:MM:SS. Returns Nothing if fails.
