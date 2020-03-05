@@ -24,8 +24,7 @@ import Dm.File ((</>))
 import qualified Dm.Time as Time
 import qualified Dm.Js as Js
 import qualified Dm.Map as Map
-import qualified Dm.Maybe as Maybe
-import Dm.Either (Result, withFail)
+import Dm.Result
 import Data.List (find)
 
 import Dm.Test
@@ -151,9 +150,9 @@ endSession cgi sessionId = do
 
 --- mkrp cgi m
 rp :: T -> Map.T Js.T -> IO ()
-rp cgi m = putStrLn $ Cryp.cryp (Js.toStr $ Js.wo m) $
-                                Maybe.withFail (key cgi)
-                                               "Cgi.Ok: Cryp key is missing"
+rp cgi m = case key cgi of
+             Just k -> putStrLn $ Cryp.cryp (Js.toStr $ Js.wo m) k
+             _ -> fail "Cgi.Ok: Cryp key is missing"
 
 ---
 emptyRp :: T -> IO ()
@@ -163,7 +162,12 @@ emptyRp cgi = rp cgi []
 rrq :: String -> Map.T Js.T -> String -> (Js.T -> Result a) -> a
 rrq source rq k jsFn =
   let msg = source ++ ": Key '" ++ k ++ "' is missing"
-  in  withFail $ Maybe.toEither msg (Map.get k rq) >>= jsFn
+  in  case toResult msg (Map.get k rq) >>= jsFn of
+        Right r -> r
+        Left e -> error e
+  where
+    toResult _ (Just e) = Right e
+    toResult msg _ = Left msg
 
 -- PRIVATE
 
@@ -183,8 +187,9 @@ uwrite home us = File.write (home </> userDb) $
 uread :: String -> IO [User]
 uread home = do
   tx <- File.read $ home </> userDb
-  return $ withFail $
-    Cryp.decryp tx fileKey >>= Js.fromStr >>= (Js.rList uFromJs)
+  case Cryp.decryp tx fileKey >>= Js.fromStr >>= (Js.rList uFromJs) of
+    Right u -> return u
+    Left e -> fail e
   where
     uFromJs js = Js.ra js >>=
       \a -> User <$> Js.rs (a!!0) <*> Js.rs (a!!1) <*> Js.rs (a!!2)
@@ -214,8 +219,9 @@ swrite home ss =
 sread :: String -> IO [Session]
 sread home = do
   tx <- File.read $ home </> sessionDb
-  return $ withFail $
-    Cryp.decryp tx fileKey >>= Js.fromStr >>= (Js.rList sFromJs)
+  case Cryp.decryp tx fileKey >>= Js.fromStr >>= (Js.rList sFromJs) of
+    Right s -> return s
+    Left e -> fail e
   where
     sFromJs js = Js.ra js >>=
       \a -> Session <$> Js.rs (a!!0) <*>
