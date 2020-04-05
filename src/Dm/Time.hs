@@ -7,25 +7,29 @@ module Dm.Time
   ( T
   , now
   , new
+  , new'
   , fromUtc
   , fromStr'
   , fromStr
   , toStr
+  , stamp
   , add
   , df
   , split
+  , split'
   , toJs
   , fromJs
   ) where
 
 import Data.Time.LocalTime
 import Data.Time.Clock
+import Data.Time.Clock.POSIX
 import Data.Time.Format
 import Data.Time.Calendar
 import qualified Dm.Date as Date
 import qualified Dm.Js as Js
 
----
+--- T
 type T = LocalTime
 
 -- now
@@ -38,12 +42,15 @@ now = do
 --- new year moth day hour min sec
 --- Creates a new day. First argument is year, second month number (1-12),
 --- third day (1-31), fourth hour, fifth minute and sexth second.
---- Invalid values will be clipped to the correct range, month first, then day
---- and so on.
+---   - Invalid date values are clipped to the correct range, month first,
+---     then day and so on (e.g. 2010 111 230 -> 2010 12 31)
+---   - Time values are not clipped.
 new :: Int -> Int -> Int -> Int -> Int -> Int -> T
 new y mth d h m s =
-  LocalTime (Date.new y mth d) $
-          TimeOfDay h m (fromIntegral s)
+  LocalTime (Date.new y mth d) $ TimeOfDay h m (fromIntegral s)
+
+new' :: Date.T -> Int -> Int -> Int -> T
+new' dt h m s = LocalTime dt $ TimeOfDay h m (fromIntegral s)
 
 --- fromUtc utc
 fromUtc :: UTCTime -> LocalTime
@@ -65,9 +72,14 @@ fromStr d s = let utc = parseTimeM False defaultTimeLocale "%H:%M:%S" s
                     _ -> Nothing
 
 --- toStr t
---- Returns a string with format YYYYMMDD.
+--- Returns a string with format HH:MM:SS.
 toStr :: T -> String
 toStr = (formatTime defaultTimeLocale "%H:%M:%S")
+
+--- stamp
+--- Returns a unique string from the current time.
+stamp :: IO String
+stamp = show <$> getPOSIXTime
 
 --- add millis t
 --- Adds milliseconds to 't'
@@ -82,11 +94,18 @@ df t1 t2 = truncate $
   diffUTCTime (localTimeToUTC utc t1) (localTimeToUTC utc t2) * 1000
 
 --- split time
---- Returns (year, month, day, hour, minute, second) from 'time'
+--- Returns (year, month (1-12), day (1-31), hour, minute, second) from 'time'
 split :: T -> (Int, Int, Int, Int, Int, Int)
 split (LocalTime day (TimeOfDay h m s)) =
   let (y, mth, d) = toGregorian day
   in  (fromIntegral y, mth, d, h, m, (truncate $ s))
+
+--- split' time
+--- Returns (date, hour, minute, second) from 'time'
+split' :: T -> (Date.T, Int, Int, Int)
+split' (LocalTime day (TimeOfDay h m s)) =
+  let (y, mth, d) = toGregorian day
+  in  (Date.new (fromIntegral y) mth d, h, m, (truncate $ s))
 
 --- toJs time
 --- Parses t to JSON.

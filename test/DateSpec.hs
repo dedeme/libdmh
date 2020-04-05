@@ -18,6 +18,15 @@ dateTest = do
 
   teq (length $ Date.toStr $ d0) 8
 
+  --putStrLn "  - split"
+  teq (Date.split d) (2010, 4, 2)
+  teq (Date.split d1) (2013, 3, 1)
+  teq (Date.split d2) (2013, 3, 6)
+  teq (Date.split d3) (2013, 4, 30)
+  teq (Date.split (Date.new 2013 0 2)) (2013, 1, 2)
+  let (y, m, day) = Date.split d
+  tyes $ (Date.df d $ Date.new y m day) == 0
+
   --putStrLn "  - from-to (1)"
   teq (Date.toStr d) "20100402"
   teq (Date.toIso '/' d) "02/04/2010"

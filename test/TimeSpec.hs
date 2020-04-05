@@ -23,4 +23,15 @@ timeTest = do
   let t = Either.fromRight t2 (Time.fromJs $ Time.toJs t0)
   teq (Time.split t) (Time.split t0)
 
+  dt <- Date.now
+  let ta = Time.new' dt 3 15 30
+  let (y1, m1, d1) = Date.split dt
+  let tb = Time.new y1 m1 d1 3 15 30
+  teq ta tb
+  tneq (Time.new' dt 40 110 112) $ Time.new' dt 24 59 59
+  let (y2, mt2, d2, h2, m2, s2) = Time.split ta
+  tyes $ (Time.df ta $ Time.new y2 mt2 d2 h2 m2 s2) == 0
+  let (dt2, _, _, _) = Time.split' ta
+  tyes $ dt == dt2
+
   putStrLn "  Finised"

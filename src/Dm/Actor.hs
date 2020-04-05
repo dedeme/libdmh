@@ -8,9 +8,7 @@ module Dm.Actor
   ( T
   , new
   , send
-  , send_
-  , sync
-  , sync_
+  , send'
   ) where
 
 import System.IO.Unsafe
@@ -20,16 +18,13 @@ import Control.Concurrent.MVar
 --- Actor type
 type T = MVar ()
 
-scheduler :: T
-scheduler = unsafePerformIO (newEmptyMVar)
-
 --- new
 --- Creates a new Actor
 new :: IO T
 new = newEmptyMVar
 
 --- send actor task
---- Send a new task to be done by 'actor' sequencially.
+--- Sends a new task to be done by 'actor' sequencially.
 --- This function ends after performing 'task' and returns its result.
 send :: T -> IO a -> IO a
 send actor task = do
@@ -38,23 +33,11 @@ send actor task = do
   takeMVar actor
   return r
 
---- send_ actor task
---- Send a new task to be done by 'actor' sequencially.
+--- send' actor task
+--- Sends a new task to be done by 'actor' sequencially.
 --- This function ends after performing 'task'.
-send_ :: T -> IO () -> IO ()
-send_ actor task = do
+send' :: T -> IO () -> IO ()
+send' actor task = do
   putMVar actor ()
   task
   takeMVar actor
-
---- sync task
---- Send a new task to be done by the default actor sequencially.
---- This function ends after performing 'task' and returns its result.
-sync :: IO a  -> IO a
-sync = send scheduler
-
---- sync_ task
---- Send a new task to be done by the default actor sequencially.
---- This function ends after performing 'task'.
-sync_ :: IO ()  -> IO ()
-sync_ = send_ scheduler

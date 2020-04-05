@@ -31,7 +31,7 @@ import Data.Time.Format
 import qualified Dm.Js as Js
 import Dm.Result
 
----
+--- T
 type T = Day
 
 --- now
@@ -44,7 +44,8 @@ now = do
 --- new year moth day
 --- Creates a new day. First argument is year, second month number (1-12),
 --- third day (1-31).
---- Invalid values will be clipped to the correct range, month first, then day.
+---   - Invalid values will be clipped to the correct range, month first,
+---     then day (e.g. new 2010 111 230 -> new 2010 12 31)
 new :: Int -> Int -> Int -> T
 new y = (fromGregorian (fromIntegral y))
 
@@ -118,7 +119,7 @@ df :: T -> T -> Int
 df d1 d2 = fromIntegral $ diffDays d1 d2
 
 --- split day
---- Returns (year, month, day) from 'day'
+--- Returns (year, month (1-12), day (1-31)) from 'day'
 split :: T -> (Int, Int, Int)
 split day = let (y, m, d) = toGregorian day in (fromIntegral y, m, d)
 

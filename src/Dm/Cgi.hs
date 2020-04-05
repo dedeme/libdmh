@@ -9,12 +9,18 @@ module Dm.Cgi
   , klen
   , new
   , authentication
+  , authentication'
   , connect
+  , connect'
   , changePass
+  , changePass'
   , getComKey
   , endSession
+  , endSession'
   , rp
+  , rp'
   , emptyRp
+  , emptyRp'
   , rrq
   ) where
 
@@ -72,15 +78,10 @@ new home key exp = dbinit >> (return $ Cgi key home exp)
        uwrite home [User "admin" (Cryp.key demeKey klen) "0"]
        swrite home []
 
---- authentication cgi user pass exp
----   cgi : Connection manager.
----   user: User name.
----   pass: User password encrypted
----   exp : If its value is Expire, (expiration cgi) will be used as
----         expiration time. Otherwise, it will be used 2592000000 millisconds
----         (30 days)
-authentication :: T -> String -> String -> Expiration -> IO ()
-authentication cgi user pass exp = do
+--- authentication' cgi user pass exp
+--- See authentication
+authentication' :: T -> String -> String -> Expiration -> IO (String)
+authentication' cgi user pass exp = do
   let key = Cryp.key pass klen
   us <- uread $ home cgi
   case find (\(User u k _) -> user == u && key == k) us of
@@ -88,51 +89,97 @@ authentication cgi user pass exp = do
       ss <- sread $ home cgi
       sId <- genSessionId ss
       k <- Cryp.genk klen
+      ck <- Cryp.genk klen
       now <- Time.now
       let ex = case exp of Expire -> expiration cgi; _ -> tNoExpiration
-      swrite (home cgi) $ (Session sId user l k ex (Time.add ex now) : ss)
-      rp cgi [("sessionId", Js.ws sId), ("key", Js.ws k)]
-    _ -> rp cgi [("sessionId", Js.ws ""), ("key", Js.ws "")]
+      swrite (home cgi) $ (Session sId user l k ck ex (Time.add ex now) : ss)
+      rp' cgi [
+          ("sessionId", Js.ws sId),
+          ("key", Js.ws k),
+          ("user", Js.ws user),
+          ("level", Js.ws l),
+          ("conKey", Js.ws ck)
+        ]
+    _ -> rp' cgi [
+          ("sessionId", Js.ws ""),
+          ("key", Js.ws ""),
+          ("user", Js.ws ""),
+          ("level", Js.ws ""),
+          ("conKey", Js.ws "")
+        ]
 
+--- authentication' cgi user pass exp
+---   cgi : Connection manager.
+---   user: User name.
+---   pass: User password encrypted
+---   exp : If its value is Expire, (expiration cgi) will be used as
+---         expiration time. Otherwise, it will be used 2592000000 millisconds
+---         (30 days)
+authentication :: T -> String -> String -> Expiration -> IO ()
+authentication cgi user pass exp =
+  authentication' cgi user pass exp >>= putStrLn
 
---- connect cgi sessionId
-connect :: T -> String -> IO ()
-connect cgi sessionId = do
+--- connect' cgi sessionId
+--- See connect
+connect' :: T -> String -> IO (String)
+connect' cgi sessionId = do
   (ss, s) <- readSession (home cgi) sessionId
-  (ss', u, l, k) <- case s of
-               Nothing -> return (ss, "", "", "")
-               Just (Session id user level key delay ex) -> do
+  (ss', u, l, k, ck) <- case s of
+               Nothing -> return (ss, "", "", "", "")
+               Just (Session id user level key ckey delay ex) -> do
                 now <- Time.now
-                if now > ex then return (ss, "", "", "")
-                else
-                  return ( Session id user level key
+                if now > ex then return (ss, "", "", "", "")
+                else do
+                  conK <- Cryp.genk klen
+                  return ( Session id user level key conK
                                    delay (Time.add delay now):ss
                          , user
                          , level
                          , key
+                         , conK
                          )
   swrite (home cgi) ss'
-  rp cgi [ ("user", Js.ws u)
+  rp' cgi [ ("user", Js.ws u)
          , ("level", Js.ws l)
          , ("key", Js.ws k)
+         , ("conKey", Js.ws ck)
          ]
 
----
-changePass :: T -> String -> String -> String -> IO ()
-changePass cgi user old new = do
+--- connect cgi sessionId
+---   cgi      : Connection manager.
+---   sessionId: Session identifier.
+connect :: T -> String -> IO ()
+connect cgi sessionId = connect' cgi sessionId >>= putStrLn
+
+--- changePass' cgi user old new
+--- See changePass
+changePass' :: T -> String -> String -> String -> IO (String)
+changePass' cgi user old new = do
   us <- uread (home cgi)
   case find (\u -> user == (uid u)) us of
-    Nothing -> rp cgi [("ok", Js.wb False)]
+    Nothing -> rp' cgi [("ok", Js.wb False)]
     Just u@(User _ uk _) -> do
       let old' = Cryp.key old klen
-      if (uk /= old') then rp cgi [("ok", Js.wb False)]
+      if (uk /= old') then rp' cgi [("ok", Js.wb False)]
       else do
         let new' = Cryp.key new klen
         let us' = filter (\u -> user /= (uid u)) us
         uwrite (home cgi) (u { ukey = new' }:us)
-        rp cgi [("ok", Js.wb True)]
+        rp' cgi [("ok", Js.wb True)]
+
+--- changePass cgi user old new
+---   cgi : Connection manager.
+---   user: User name.
+---   old : Old password.
+---   new : New password.
+changePass :: T -> String -> String -> String -> IO ()
+changePass cgi user old new = changePass' cgi user old new >>= putStrLn
+
 
 --- getComKey cgi ssId
+--- Returns the communication key.
+---   cgi : Connection manager.
+---   ssId: Session identifier.
 getComKey :: T -> String -> IO (Maybe String)
 getComKey cgi ssId = do
   ss <- readSession (home cgi) ssId
@@ -140,25 +187,49 @@ getComKey cgi ssId = do
     (_, Just s) -> return $ Just (skey s)
     _ -> return Nothing
 
---- endSession cgi sessionId
-endSession :: T -> String -> IO ()
-endSession cgi sessionId = do
+--- endSession' cgi sessionId
+--- See endSession
+endSession' :: T -> String -> IO (String)
+endSession' cgi sessionId = do
   ss <- sread (home cgi)
   let ss' = filter (\s -> sessionId /= (sid s)) ss
   swrite (home cgi) ss'
-  emptyRp cgi
+  emptyRp' cgi
 
---- mkrp cgi m
+--- endSession cgi sessionId
+---   cgi      : Connection manager.
+---   sessionId: Session identifier.
+endSession :: T -> String -> IO ()
+endSession cgi sessionId = endSession' cgi sessionId  >>= putStrLn
+
+--- rp' cgi m
+--- Makes a normal response and returns it
+rp' :: T -> Map.T Js.T -> IO (String)
+rp' cgi m = case key cgi of
+              Just k -> return $ Cryp.cryp (Js.toStr $ Js.wo m) k
+              _ -> fail "Cgi.Ok: Cryp key is missing"
+
+--- rp cgi m
+--- Makes a normal response and send it to console
 rp :: T -> Map.T Js.T -> IO ()
-rp cgi m = case key cgi of
-             Just k -> putStrLn $ Cryp.cryp (Js.toStr $ Js.wo m) k
-             _ -> fail "Cgi.Ok: Cryp key is missing"
+rp cgi m = rp' cgi m >>= putStrLn
 
----
+--- emptyRp' cgi
+--- Makes an normal response and returns it
+emptyRp' :: T -> IO (String)
+emptyRp' cgi = rp' cgi []
+
+--- emptyRp cgi
+--- Makes an empty response and send it to console
 emptyRp :: T -> IO ()
 emptyRp cgi = rp cgi []
 
----
+--- rrq source rq k jsFn
+--- Reads a request.
+---   source: Function which calls 'rrq' (for error messages).
+---   rq    : Request.
+---   k     : Commnication key.
+---   jsFn  : Function to "JSONify" the value of 'k'.
 rrq :: String -> Map.T Js.T -> String -> (Js.T -> Result a) -> a
 rrq source rq k jsFn =
   let msg = source ++ ": Key '" ++ k ++ "' is missing"
@@ -203,7 +274,8 @@ data Session = Session
   { sid :: String
   , suser :: String
   , slevel :: String
-  , skey :: String
+  , skey :: String  -- Comunication key
+  , ckye :: String  -- Connection key
   , sdelay :: Int
   , sex :: Time.T
   }
@@ -213,8 +285,8 @@ swrite home ss =
   File.write (home </> sessionDb) $ Cryp.cryp (Js.toStr toJs) fileKey
   where
     toJs = Js.wList sToJs ss
-    sToJs (Session i u l k d e) =
-      Js.wa [Js.ws i, Js.ws u, Js.ws l, Js.ws k, Js.wi d, Time.toJs e]
+    sToJs (Session i u l k ck d e) =
+      Js.wa [Js.ws i, Js.ws u, Js.ws l, Js.ws k, Js.ws ck, Js.wi d, Time.toJs e]
 
 sread :: String -> IO [Session]
 sread home = do
@@ -226,7 +298,8 @@ sread home = do
     sFromJs js = Js.ra js >>=
       \a -> Session <$> Js.rs (a!!0) <*>
                         Js.rs (a!!1) <*> Js.rs (a!!2) <*> Js.rs (a!!3) <*>
-                        Js.ri (a!!4) <*> Time.fromJs (a!!5)
+                        Js.rs (a!!4) <*>
+                        Js.ri (a!!5) <*> Time.fromJs (a!!6)
 
 genSessionId :: [Session] -> IO String
 genSessionId ss = do
